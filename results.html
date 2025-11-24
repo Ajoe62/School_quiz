@@ -1,0 +1,203 @@
+<!-- /results.html (unchanged UI; works with new flow) -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Results Lookup</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-gray-50">
+  <header class="border-b bg-white">
+    <div class="mx-auto max-w-4xl px-4 py-4 flex items-center justify-between">
+      <h1 class="text-xl font-semibold">Results Lookup</h1>
+      <nav class="text-sm">
+        <a href="index.html" class="underline">Back to Quiz</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-4xl px-4 py-8 space-y-8">
+    <section class="bg-white rounded-2xl shadow p-6">
+      <h2 class="text-lg font-semibold mb-4">Find a student</h2>
+      <div class="grid gap-4 sm:grid-cols-3">
+        <input id="nameLookup" type="text" placeholder="Enter student name"
+               class="rounded-xl border px-3 py-2 focus:outline-none focus:ring" />
+        <select id="studentSelect" class="rounded-xl border px-3 py-2">
+          <option value="">All students…</option>
+        </select>
+        <div class="flex gap-2">
+          <button id="searchBtn" class="rounded-xl bg-gray-900 text-white px-4 py-2 hover:opacity-90">Search</button>
+          <button id="clearInputBtn" class="rounded-xl border px-4 py-2">Clear</button>
+        </div>
+      </div>
+      <p id="lookupHint" class="mt-2 text-sm text-gray-500">Choose from list or type a name, then Search.</p>
+    </section>
+
+    <section id="latestCard" class="bg-white rounded-2xl shadow p-6 hidden">
+      <h3 class="text-base font-semibold mb-2">Latest Result</h3>
+      <p id="latestMeta" class="text-sm text-gray-600"></p>
+      <div class="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="rounded-xl border p-4">
+          <div class="text-xs uppercase text-gray-500">Score</div>
+          <div id="latestScore" class="text-2xl font-semibold"></div>
+        </div>
+        <div class="rounded-xl border p-4">
+          <div class="text-xs uppercase text-gray-500">Percentage</div>
+          <div id="latestPercent" class="text-2xl font-semibold"></div>
+        </div>
+        <div class="rounded-xl border p-4">
+          <div class="text-xs uppercase text-gray-500">Time Spent</div>
+          <div id="latestTime" class="text-2xl font-semibold"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="historyCard" class="bg-white rounded-2xl shadow p-6 hidden">
+      <div class="flex items-center justify-between">
+        <h3 class="text-base font-semibold">Previous Attempts</h3>
+        <div class="flex gap-2">
+          <button id="deleteStudentBtn" class="rounded-xl border px-3 py-2">Delete Student</button>
+          <button id="deleteAllBtn" class="rounded-xl border px-3 py-2">Delete All</button>
+        </div>
+      </div>
+      <div class="mt-4 overflow-x-auto">
+        <table class="min-w-full text-sm">
+          <thead class="text-left text-gray-600">
+            <tr>
+              <th class="py-2 pr-4">#</th>
+              <th class="py-2 pr-4">Date</th>
+              <th class="py-2 pr-4">Score</th>
+              <th class="py-2 pr-4">Percent</th>
+              <th class="py-2 pr-4">Time</th>
+            </tr>
+          </thead>
+          <tbody id="historyBody" class="align-top"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="emptyState" class="bg-white rounded-2xl shadow p-6 hidden">
+      <p class="text-gray-600">No results found for that name.</p>
+    </section>
+  </main>
+
+  <script src="./app.js"></script>
+  <script>
+    // --- Page: Results ---
+    const nameLookup = document.getElementById('nameLookup');
+    const studentSelect = document.getElementById('studentSelect');
+    const searchBtn = document.getElementById('searchBtn');
+    const clearInputBtn = document.getElementById('clearInputBtn');
+
+    const latestCard = document.getElementById('latestCard');
+    const latestMeta = document.getElementById('latestMeta');
+    const latestScore = document.getElementById('latestScore');
+    const latestPercent = document.getElementById('latestPercent');
+    const latestTime = document.getElementById('latestTime');
+
+    const historyCard = document.getElementById('historyCard');
+    const historyBody = document.getElementById('historyBody');
+
+    const emptyState = document.getElementById('emptyState');
+
+    const deleteAllBtn = document.getElementById('deleteAllBtn');
+    const deleteStudentBtn = document.getElementById('deleteStudentBtn');
+
+    function populateStudents() {
+      studentSelect.innerHTML = '<option value="">All students…</option>';
+      const students = getAllStudents().sort((a, b) => a.localeCompare(b));
+      students.forEach(name => {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        studentSelect.appendChild(opt);
+      });
+    }
+
+    function renderStudent(name) {
+      const norm = (name || '').trim();
+      if (!norm) {
+        latestCard.classList.add('hidden');
+        historyCard.classList.add('hidden');
+        emptyState.classList.remove('hidden');
+        return;
+      }
+      const attempts = getStudentAttempts(norm);
+      if (!attempts || attempts.length === 0) {
+        latestCard.classList.add('hidden');
+        historyCard.classList.add('hidden');
+        emptyState.classList.remove('hidden');
+        return;
+      }
+
+      emptyState.classList.add('hidden');
+
+      const latest = attempts[attempts.length - 1];
+      latestCard.classList.remove('hidden');
+      latestMeta.textContent = `Student: ${norm} • ${new Date(latest.dateISO).toLocaleString()}`;
+      latestScore.textContent = `${latest.score} / ${latest.totalQuestions}`;
+      latestPercent.textContent = `${latest.percentage}%`;
+      latestTime.textContent = formatDuration(latest.timeSeconds);
+
+      historyBody.innerHTML = '';
+      [...attempts].reverse().forEach((a, idx) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="py-2 pr-4">${idx + 1}</td>
+          <td class="py-2 pr-4">${new Date(a.dateISO).toLocaleString()}</td>
+          <td class="py-2 pr-4">${a.score} / ${a.totalQuestions}</td>
+          <td class="py-2 pr-4">${a.percentage}%</td>
+          <td class="py-2 pr-4">${formatDuration(a.timeSeconds)}</td>
+        `;
+        historyBody.appendChild(tr);
+      });
+      historyCard.classList.remove('hidden');
+    }
+
+    searchBtn.addEventListener('click', () => {
+      const val = nameLookup.value.trim() || studentSelect.value.trim();
+      renderStudent(val);
+    });
+
+    clearInputBtn.addEventListener('click', () => {
+      nameLookup.value = '';
+      studentSelect.value = '';
+      emptyState.classList.remove('hidden');
+      latestCard.classList.add('hidden');
+      historyCard.classList.add('hidden');
+    });
+
+    deleteAllBtn.addEventListener('click', () => {
+      if (!confirm('Delete ALL quiz data from this browser?')) return;
+      localStorage.removeItem('quizResults');
+      populateStudents();
+      clearInputBtn.click();
+    });
+
+    deleteStudentBtn.addEventListener('click', () => {
+      const name = nameLookup.value.trim() || studentSelect.value.trim();
+      if (!name) return;
+      if (!confirm(`Delete all results for "${name}"?`)) return;
+      const store = loadResults();
+      delete store[name];
+      saveResults(store);
+      populateStudents();
+      clearInputBtn.click();
+    });
+
+    (function init() {
+      populateStudents();
+      const params = new URLSearchParams(location.search);
+      const name = params.get('name');
+      if (name) {
+        nameLookup.value = name;
+        studentSelect.value = name;
+        renderStudent(name);
+      } else {
+        emptyState.classList.remove('hidden');
+      }
+    })();
+  </script>
+</body>
+</html>

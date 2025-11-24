@@ -1,0 +1,396 @@
+<!-- /index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Simple Quiz (One-by-One)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-gray-50">
+  <header class="border-b bg-white">
+    <div class="mx-auto max-w-3xl px-4 py-4 flex items-center justify-between">
+      <h1 class="text-xl font-semibold">Simple Quiz</h1>
+      <nav class="text-sm">
+        <a href="results.html" class="underline">Results Lookup</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-3xl px-4 py-8">
+    <!-- Name View -->
+    <section id="nameView" class="bg-white rounded-2xl shadow p-6">
+      <h2 class="text-lg font-semibold mb-4">Enter your name to begin</h2>
+      <form id="nameForm" class="space-y-4">
+        <div>
+          <label for="studentName" class="block text-sm font-medium mb-1">Student Name</label>
+          <input id="studentName" type="text" required
+                 class="w-full rounded-xl border px-3 py-2 focus:outline-none focus:ring"
+                 placeholder="e.g., Ada Lovelace" />
+          <p id="nameError" class="mt-2 text-sm text-red-600 hidden">Please enter a valid name.</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <button type="submit"
+                  class="rounded-xl bg-gray-900 text-white px-4 py-2 hover:opacity-90">
+            Start Quiz
+          </button>
+          <a href="results.html" class="text-sm underline">View past results</a>
+        </div>
+      </form>
+    </section>
+
+    <!-- Quiz View -->
+    <section id="quizView" class="mt-8 bg-white rounded-2xl shadow p-6 hidden">
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <h2 class="text-lg font-semibold">Quiz</h2>
+          <p id="quizFor" class="text-sm text-gray-600"></p>
+        </div>
+        <div class="text-right">
+          <div class="text-xs uppercase text-gray-500">Timer</div>
+          <div id="timer" class="text-2xl font-mono">00:00</div>
+        </div>
+      </div>
+
+      <div class="mt-4">
+        <div class="flex items-center justify-between mb-2">
+          <span id="qCounter" class="text-sm text-gray-700">Question 1 of 1</span>
+          <span id="answeredHint" class="text-xs text-gray-500"></span>
+        </div>
+        <div class="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
+          <div id="progressBar" class="h-full bg-gray-900" style="width: 0%"></div>
+        </div>
+      </div>
+
+      <form id="quizForm" class="mt-6 space-y-4">
+        <!-- Current question injected here -->
+      </form>
+
+      <div class="mt-6 flex items-center gap-3">
+        <button id="prevBtn" class="rounded-xl border px-4 py-2" disabled>Prev (←)</button>
+        <button id="nextBtn" class="rounded-xl bg-gray-900 text-white px-4 py-2 hover:opacity-90">
+          Next (→ / Enter)
+        </button>
+        <button id="resetQuiz" class="ml-auto rounded-xl border px-4 py-2">Reset Answers</button>
+      </div>
+      <p class="mt-3 text-sm text-gray-500">Shortcuts: <kbd class="border px-1 rounded">1-9</kbd> choose option, <kbd class="border px-1 rounded">←</kbd>/<kbd class="border px-1 rounded">→</kbd> navigate, <kbd class="border px-1 rounded">Enter</kbd> next/submit.</p>
+    </section>
+
+    <!-- Summary View -->
+    <section id="summaryView" class="mt-8 bg-white rounded-2xl shadow p-6 hidden">
+      <h2 class="text-lg font-semibold mb-2">Results</h2>
+      <p id="summaryFor" class="text-sm text-gray-600"></p>
+
+      <div class="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="rounded-xl border p-4">
+          <div class="text-xs uppercase text-gray-500">Score</div>
+          <div id="sumScore" class="text-2xl font-semibold"></div>
+        </div>
+        <div class="rounded-xl border p-4">
+          <div class="text-xs uppercase text-gray-500">Percentage</div>
+          <div id="sumPercent" class="text-2xl font-semibold"></div>
+        </div>
+        <div class="rounded-xl border p-4">
+          <div class="text-xs uppercase text-gray-500">Time Spent</div>
+          <div id="sumTime" class="text-2xl font-semibold"></div>
+        </div>
+      </div>
+
+      <div class="mt-6 flex items-center gap-3">
+        <button id="retakeBtn" class="rounded-xl border px-4 py-2">Retake</button>
+        <a id="viewResultsLink" href="results.html"
+           class="rounded-xl bg-gray-900 text-white px-4 py-2 hover:opacity-90">View Results</a>
+      </div>
+      <p class="mt-3 text-sm text-gray-500">Saved automatically to this browser.</p>
+    </section>
+  </main>
+
+  <script src="./app.js"></script>
+  <script>
+    // --- Page: Quiz (index) ---
+    const nameView = document.getElementById('nameView');
+    const quizView = document.getElementById('quizView');
+    const summaryView = document.getElementById('summaryView');
+
+    const nameForm = document.getElementById('nameForm');
+    const studentNameInput = document.getElementById('studentName');
+    const nameError = document.getElementById('nameError');
+
+    const quizForm = document.getElementById('quizForm');
+    const quizFor = document.getElementById('quizFor');
+    const timerEl = document.getElementById('timer');
+
+    const qCounter = document.getElementById('qCounter');
+    const answeredHint = document.getElementById('answeredHint');
+    const progressBar = document.getElementById('progressBar');
+
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const resetQuizBtn = document.getElementById('resetQuiz');
+
+    const summaryFor = document.getElementById('summaryFor');
+    const sumScore = document.getElementById('sumScore');
+    const sumPercent = document.getElementById('sumPercent');
+    const sumTime = document.getElementById('sumTime');
+    const viewResultsLink = document.getElementById('viewResultsLink');
+    const retakeBtn = document.getElementById('retakeBtn');
+
+    // Questions (edit freely)
+    const QUESTIONS = [
+      {
+        id: 1,
+        text: 'Which HTML tag is used to define an unordered list?',
+        options: ['<ol>', '<ul>', '<li>', '<dl>'],
+        answerIndex: 1
+      },
+      {
+        id: 2,
+        text: 'Which CSS property controls text size?',
+        options: ['font-weight', 'font-size', 'text-style', 'size'],
+        answerIndex: 1
+      },
+      {
+        id: 3,
+        text: 'What does JSON stand for?',
+        options: [
+          'Java Source Object Notation',
+          'JavaScript Object Notation',
+          'Java Standard Output Network',
+          'Joint Source Open Network'
+        ],
+        answerIndex: 1
+      },
+      {
+        id: 4,
+        text: 'Which method converts a JSON string to an object in JS?',
+        options: ['JSON.toObject()', 'JSON.parse()', 'JSON.object()', 'parse.JSON()'],
+        answerIndex: 1
+      },
+      {
+        id: 5,
+        text: 'Which HTTP status indicates success?',
+        options: ['200', '301', '404', '500'],
+        answerIndex: 0
+      }
+    ];
+
+    let CURRENT_NAME = '';
+    let startTime = null;
+    let timerInterval = null;
+
+    let currentIndex = 0;
+    const answers = {}; // { [q.id]: selectedIndex }
+
+    // Render current question only
+    function renderCurrent() {
+      const q = QUESTIONS[currentIndex];
+      quizForm.innerHTML = `
+        <fieldset class="rounded-xl border p-4">
+          <legend class="font-medium mb-3">Q${currentIndex + 1}. ${escapeHtml(q.text)}</legend>
+          <div class="space-y-2">
+            ${q.options.map((opt, i) => `
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input type="radio" name="q-${q.id}" value="${i}" class="h-4 w-4">
+                <span>${escapeHtml(opt)}</span>
+              </label>
+            `).join('')}
+          </div>
+        </fieldset>
+      `;
+
+      // Restore prior selection if any
+      const prev = answers[q.id];
+      if (typeof prev === 'number') {
+        const el = quizForm.querySelector(`input[type="radio"][value="${prev}"]`);
+        if (el) el.checked = true;
+      }
+
+      // Bind change -> persist
+      quizForm.querySelectorAll('input[type="radio"]').forEach(radio => {
+        radio.addEventListener('change', (e) => {
+          answers[q.id] = Number(e.target.value);
+        });
+      });
+
+      // Update progress UI
+      const total = QUESTIONS.length;
+      qCounter.textContent = `Question ${currentIndex + 1} of ${total}`;
+      const answeredCount = Object.keys(answers).length;
+      answeredHint.textContent = `${answeredCount}/${total} answered`;
+      const pct = Math.round(((currentIndex + 1) / total) * 100);
+      progressBar.style.width = `${pct}%`;
+
+      // Buttons
+      prevBtn.disabled = currentIndex === 0;
+      nextBtn.textContent = currentIndex === total - 1 ? 'Submit (Enter)' : 'Next (→ / Enter)';
+
+      // Focus first option for fast 1–9 keys
+      const firstRadio = quizForm.querySelector('input[type="radio"]');
+      if (firstRadio) firstRadio.focus();
+    }
+
+    function startTimer() {
+      stopTimer();
+      startTime = Date.now();
+      timerInterval = setInterval(() => {
+        const sec = Math.floor((Date.now() - startTime) / 1000);
+        timerEl.textContent = formatClock(sec);
+      }, 250);
+    }
+
+    function stopTimer() {
+      if (timerInterval) clearInterval(timerInterval);
+      timerInterval = null;
+    }
+
+    function computeScore() {
+      let correct = 0;
+      QUESTIONS.forEach(q => {
+        const idx = typeof answers[q.id] === 'number' ? answers[q.id] : -1;
+        if (idx === q.answerIndex) correct += 1;
+      });
+      return correct;
+    }
+
+    // Events
+    nameForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const raw = studentNameInput.value.trim();
+      if (!raw) {
+        nameError.classList.remove('hidden');
+        return;
+      }
+      nameError.classList.add('hidden');
+      CURRENT_NAME = raw;
+
+      // Reset state for a fresh run
+      currentIndex = 0;
+      for (const k in answers) delete answers[k];
+
+      quizFor.textContent = `For: ${CURRENT_NAME}`;
+      nameView.classList.add('hidden');
+      summaryView.classList.add('hidden');
+      quizView.classList.remove('hidden');
+
+      renderCurrent();
+      startTimer();
+    });
+
+    prevBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (currentIndex > 0) {
+        currentIndex -= 1;
+        renderCurrent();
+      }
+    });
+
+    nextBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      handleNextOrSubmit();
+    });
+
+    resetQuizBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      // Clear stored answers but keep timer running
+      for (const k in answers) delete answers[k];
+      renderCurrent();
+    });
+
+    retakeBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      currentIndex = 0;
+      for (const k in answers) delete answers[k];
+      summaryView.classList.add('hidden');
+      quizView.classList.remove('hidden');
+      renderCurrent();
+      startTimer();
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      // Ignore when typing in the name field
+      const active = document.activeElement;
+      const isTyping = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA');
+
+      // Only after quiz started
+      const quizActive = !quizView.classList.contains('hidden');
+
+      if (quizActive) {
+        if (!isTyping || active.type === 'radio') {
+          // 1..9 select option
+          if (e.key >= '1' && e.key <= '9') {
+            const choice = Number(e.key) - 1;
+            const q = QUESTIONS[currentIndex];
+            if (choice < q.options.length) {
+              const radio = quizForm.querySelector(`input[type="radio"][value="${choice}"]`);
+              if (radio) {
+                radio.checked = true;
+                answers[q.id] = choice;
+                // Move focus to Next for rapid flow
+                nextBtn.focus();
+              }
+            }
+          }
+          if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            handleNextOrSubmit();
+          }
+          if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            if (currentIndex > 0) {
+              currentIndex -= 1;
+              renderCurrent();
+            }
+          }
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            handleNextOrSubmit();
+          }
+        }
+      }
+    });
+
+    function handleNextOrSubmit() {
+      const last = currentIndex === QUESTIONS.length - 1;
+      if (!last) {
+        currentIndex += 1;
+        renderCurrent();
+        return;
+      }
+      // Submit flow
+      stopTimer();
+      const total = QUESTIONS.length;
+      const score = computeScore();
+      const timeSeconds = Math.max(1, Math.floor((Date.now() - startTime) / 1000));
+      const percentage = Math.round((score / total) * 100);
+
+      const attempt = {
+        score,
+        totalQuestions: total,
+        percentage,
+        timeSeconds,
+        dateISO: new Date().toISOString()
+      };
+      saveAttempt(CURRENT_NAME, attempt); // auto-save
+
+      summaryFor.textContent = `Student: ${CURRENT_NAME} • ${new Date(attempt.dateISO).toLocaleString()}`;
+      sumScore.textContent = `${score} / ${total}`;
+      sumPercent.textContent = `${percentage}%`;
+      sumTime.textContent = formatDuration(timeSeconds);
+      viewResultsLink.href = `results.html?name=${encodeURIComponent(CURRENT_NAME)}`;
+
+      quizView.classList.add('hidden');
+      summaryView.classList.remove('hidden');
+    }
+
+    // Optional: prefill name from URL
+    (function prefill() {
+      const params = new URLSearchParams(location.search);
+      const name = params.get('name');
+      if (name) {
+        studentNameInput.value = name;
+      }
+    })();
+  </script>
+</body>
+</html>
