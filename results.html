@@ -155,8 +155,14 @@
       historyCard.classList.remove('hidden');
     }
 
+    function getSelectedName() {
+      const selected = studentSelect.value.trim();
+      if (selected) return selected;
+      return nameLookup.value.trim();
+    }
+
     searchBtn.addEventListener('click', () => {
-      const val = nameLookup.value.trim() || studentSelect.value.trim();
+      const val = getSelectedName();
       renderStudent(val);
     });
 
@@ -176,7 +182,7 @@
     });
 
     deleteStudentBtn.addEventListener('click', () => {
-      const name = nameLookup.value.trim() || studentSelect.value.trim();
+      const name = getSelectedName();
       if (!name) return;
       if (!confirm(`Delete all results for "${name}"?`)) return;
       const store = loadResults();
